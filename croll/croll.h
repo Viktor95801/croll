@@ -10,8 +10,6 @@
     #define CROLL_IMPLEMENTATION
     #include "../croll/croll.h"
 
-    croll_daDecl(int, int_arr);
-
     int main() {
         croll_init(); // used to init croll's functionalities
 
@@ -26,14 +24,14 @@
 
         croll_logInfo("Array test...\n");
 
-        struct int_arr arr = {0};
+        croll_daDecl(int,) arr = {0};
 
         for(int i = 0; i < 10; i++) {
             croll_daAppend(&arr, i);
         }
 
-        croll_daForEach(&arr, it) {
-            croll_logInfo("  %d\n", *it);
+        croll_daForEach(int, it, &arr) {
+            croll_logInfo("%lld.  %d\n", croll_daForEach_index(it, &arr), *it);
         }
 
         return 0;
@@ -149,7 +147,7 @@ static FILE *croll_STDOUT;
 #define croll_daLast(da) ((da)->data[(croll_ASSERT((da)->len > 0, "Data array is empty at file: "__FILE__), (da)->len-1)])
 
 #define croll_daForEach(type, it, da) for(type *it = (da)->data; it < (da)->data + (da)->len; it++)
-#define croll_daForEach_elemIndex(da, it) ((it) - (da)->data)
+#define croll_daForEach_index(it, da) ((it) - (da)->data)
 
 // hash table defines
 
@@ -251,7 +249,7 @@ typedef struct croll_BumpAlloc {
  * 
  * The allocation is done in O(1) time due to the next free chunk being always available in the `free_chunks` field.
  */
-typedef struct {
+typedef struct croll_PoolAlloc {
     void *free_chunks;
     void *chunks;
     size_t chunk_size;
@@ -259,7 +257,6 @@ typedef struct {
 
     int allocated_chunks; // debug
 } croll_PoolAlloc;
-#define croll_poolChunkDecl(size)
 
 // Won't be implemented yet
 // // A simpler version of croll_BumpAlloc for use with all sorts of memories, from heap to a simple char arr[1024]; heap like array. Used mostly on croll internal string functions.
@@ -590,10 +587,7 @@ static __CROLL_INLINE_ATTR void croll_bumpDestroy(croll_BumpAlloc *bump) {
         croll_BumpAlloc *next = bump->_next;
         free(bump->data);
         bump->data = NULL;
-        bump->size = 0;
-        bump->offset = 0;
         free(bump);
-        bump = NULL;
         bump = next;
     } while(bump->_next != NULL);
 }
@@ -613,6 +607,7 @@ static size_t croll_hashDjb2(char *str) {
 
 #endif // CROLL_IMPLEMENTATION
 
+#define CROLL_POOL_ALLOC_IMPLEMENTATION
 #ifdef CROLL_POOL_ALLOC_IMPLEMENTATION
 static croll_PoolAlloc *croll_poolNew(size_t pool_size, size_t chunk_size) {
     chunk_size = croll_ALLOC_ALIGN(chunk_size);
@@ -645,6 +640,7 @@ static croll_PoolAlloc *croll_poolNew(size_t pool_size, size_t chunk_size) {
 static __CROLL_INLINE_ATTR void croll_poolDestroy(croll_PoolAlloc *pool) {
     croll_checkNullPtr(pool) return;
     free(pool->chunks);
+    pool->chunks = NULL;
     free(pool);
 }
 
@@ -662,9 +658,6 @@ static __CROLL_INLINE_ATTR void *croll_poolAlloc(croll_PoolAlloc *pool) {
 static __CROLL_INLINE_ATTR void croll_poolFree(croll_PoolAlloc *pool, void *chunk) {
     croll_checkNullPtr(pool) return;
     croll_checkNullPtr(chunk) return;
-    
-//    if(!(chunk >= pool->chunks && (pool->chunks + (pool->pool_size-1) * pool->chunk_size) <= chunk))
-//        return;
 
     *(void**)chunk = pool->free_chunks;
     pool->free_chunks = chunk;

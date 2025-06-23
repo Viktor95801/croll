@@ -1,7 +1,7 @@
 # What is this?
 
-This is a header-only stb-style library for higger-level C interfaces and utility functions for working with strings, arrays, and memory, made to get C rolling faster.
-This is a work in progress and highly experimental.
+This is a header-only stb-style library for higger-level C interfaces and utility functions for working with strings, arrays, and memory, made to get your C rolling.
+This is a work in progress and highly experimental, so the API changes will be constant.
 
 ## Resources
 

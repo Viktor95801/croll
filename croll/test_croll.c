@@ -168,6 +168,31 @@ bool test_poolallocator() {
     return true;
 }
 
+bool test_readfile() {
+    // test: iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+    croll_StringBuilder sb = croll_readEntireFile("croll/test_croll.c");
+    ASSERT(sb.data != NULL);
+    //logInfo("file: %s\n", sb.data);
+
+    FILE *f = fopen("croll/test_croll.c", "r");
+    ASSERT(f != NULL);
+
+    char line[1024];
+    ASSERT(fgets(line, sizeof(line), f) != NULL);
+
+
+    strtok(line, "\n");
+    strtok(sb.data, "\n");
+
+    logInfo("Line: %s\n", line);
+    logInfo("sb.data: %s\n", sb.data);
+
+    ASSERT(strcmp(line, sb.data) == 0);
+
+    croll_sbFree(&sb);
+    return true;
+}
+
 bool test_hash() {
     size_t hash = croll_hashDjb2("hello");
     croll_UNUSED(hash);
@@ -185,6 +210,7 @@ void test_all() {
     TEST(test_bumpallocator);
     TEST(test_poolallocator);
     TEST(test_hash);
+    TEST(test_readfile);
 }
 
 int main(void) {

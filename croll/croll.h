@@ -542,11 +542,11 @@ static croll_StringBuilder croll_readEntireFile(const char *path) {
     FILE *file = fopen(path, "r");
     croll_checkNullPtr(file) return (croll_StringBuilder){0};
     croll_StringBuilder sb = {0};
-    char buf[512];
+
     while (true) {
-        fgets(buf, 512, file);
-        if (feof(file)) break;
-        croll_sbExtend(&sb, buf, 512);
+        char c = fgetc(file);
+        if (c == EOF) break;
+        croll_sbAppend(&sb, c);
     }
     croll_sbAppend(&sb, '\0'); // ensures null termination
     fclose(file);

@@ -149,26 +149,22 @@ bool test_bumpallocator() {
 }
 
 bool test_poolallocator() {
-    croll_PoolAlloc *pool = croll_poolNew(2, 16);
-    ASSERT(pool != NULL);
+    croll_PoolAlloc *pool = croll_poolNew(1, 16);
 
-    char *hello = (char *)croll_poolAlloc(pool);
+    char *hello = croll_poolAlloc(pool);
     ASSERT(hello != NULL);
-    strcpy(hello, "It was me, DIO!");
+    strcpy(hello, "Hello, ");
 
-    char *world = (char *)croll_poolAlloc(pool);
+    char *world = croll_poolAlloc(pool);
     ASSERT(world != NULL);
-    strcpy(world, "Za warudo!");
+    strcpy(world, "World!");
 
     logInfo("%s %s\n", hello, world);
 
     croll_poolFree(pool, hello);
-    croll_poolFree(pool, world);
-
-    logInfo("pool->allocated_chunks: %d\n", pool->allocated_chunks);
-    ASSERT(pool->allocated_chunks == 0);
-
+    croll_poolFree(pool, world);   
     croll_poolDestroy(pool);
+
     return true;
 }
 

@@ -70,7 +70,7 @@ Copyright 2025 Viktor Hugo C.M.G.
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <strings.h>
+#include <string.h>
 
 //======================================================================
 // CRoll specific parts
@@ -230,211 +230,339 @@ typedef struct {
 // Strip prefix
 //======================================================================
 
-#ifdef CROLL_STRIP_PREFIX
+//======================================================================
+// 1. Guards
+//======================================================================
+#if defined(CROLL_STRIP_PREFIX) || defined(CROLL_STRIP_GUARDS)
+#define checkNullPtr croll_checkNullPtr
+#define nullPtrGuard croll_nullPtrGuard
+#endif
 
-#define logInfo     croll_logInfo
-#define logWarn     croll_logWarn
-#define logError    croll_logError
+//======================================================================
+// 2. Logging
+//======================================================================
+#if defined(CROLL_STRIP_PREFIX) || defined(CROLL_STRIP_LOG)
+#define logInfo  croll_logInfo
+#define logWarn  croll_logWarn
+#define logError croll_logError
+#endif
 
-#define HgetLine    croll_HgetLine
-#define SgetLine    croll_SgetLine
+//======================================================================
+// 3. I/O
+//======================================================================
+#if defined(CROLL_STRIP_PREFIX) || defined(CROLL_STRIP_IO)
+#define HgetLine       croll_HgetLine
+#define SgetLine       croll_SgetLine
+#define readEntireFile croll_readEntireFile
+#endif
 
-#endif // CROLL_STRIP_PREFIX
+//======================================================================
+// 4. Text
+//======================================================================
+#if defined(CROLL_STRIP_PREFIX) || defined(CROLL_STRIP_TEXT)
+#define textFmt       croll_textFmt
+#define textSubString croll_textSubString
+#endif
+
+//======================================================================
+// 5. Dynamic Array (DA)
+//======================================================================
+#if defined(CROLL_STRIP_PREFIX) || defined(CROLL_STRIP_DA)
+#define daDecl(type,name)      croll_daDecl(type,name)
+#define daFree(da)             croll_daFree(da)
+#define daReserve(da,n)        croll_daReserve(da,n)
+#define daAppend(da,x)         croll_daAppend(da,x)
+#define daExtend(da,arr,count) croll_daExtend(da,arr,count)
+#define daLast(da)             croll_daLast(da)
+#define daForEach(type,it,da)  croll_daForEach(type,it,da)
+#define daIndex(it,da)         croll_daForEach_index(it,da)
+#endif
+
+//======================================================================
+// 6. String Builder
+//======================================================================
+#if defined(CROLL_STRIP_PREFIX) || defined(CROLL_STRIP_STRBUILDER)
+#define sbDecl(name)         croll_sbDecl(name)
+#define sbAppend(sb,ch)      croll_sbAppend(sb,ch)
+#define sbExtend(sb,str,len) croll_sbExtend(sb,str,len)
+#define sbFree(sb)           croll_sbFree(sb)
+#endif
+
+//======================================================================
+// 7. Bump Allocator
+//======================================================================
+#if defined(CROLL_STRIP_PREFIX) || defined(CROLL_STRIP_BUMPALLOC)
+#define bumpNew(cap)        croll_bumpNew(cap)
+#define bumpAlloc(bump,n)   croll_bumpAlloc(bump,n)
+#define bumpAllocOrExpand(bump,n) croll_bumpAllocOrExpand(bump,n)
+#define bumpReset(bump)     croll_bumpReset(bump)
+#define bumpDestroy(bump)   croll_bumpDestroy(bump)
+#endif
+
+//======================================================================
+// 8. Pool Allocator
+//======================================================================
+#if defined(CROLL_STRIP_PREFIX) || defined(CROLL_STRIP_POOLALLOC)
+#define poolNew(poolSz,chunkSz) croll_poolNew(poolSz,chunkSz)
+#define poolAlloc(pool)         croll_poolAlloc(pool)
+#define poolFree(pool,chunk)    croll_poolFree(pool,chunk)
+#define poolDestroy(pool)       croll_poolDestroy(pool)
+#endif
+
+//======================================================================
+// 9. Hash Table
+//======================================================================
+#if defined(CROLL_STRIP_PREFIX) || defined(CROLL_STRIP_HT)
+#define htNew(keyMaxLen)    croll_htNew(keyMaxLen)
+#define htDestroy(ht)       croll_htDestroy(ht)
+#define htGet(ht,key)       croll_htGet(ht,key)
+#define htSet(ht,key,val)   croll_htSet(ht,key,val)
+#endif
+
+//======================================================================
+// 10. Hash Functions
+//======================================================================
+#if defined(CROLL_STRIP_PREFIX)
+#define hashDjb2(str)       croll_hashDjb2(str)
+#endif
+
+//======================================================================
+// 11. Types/Aliases
+//======================================================================
+#if defined(CROLL_STRIP_PREFIX) || defined(CROLL_STRIP_TYPES)
+#define i8   croll_i8
+#define u8   croll_u8
+#define i16  croll_i16
+#define u16  croll_u16
+#define i32  croll_i32
+#define u32  croll_u32
+#define i64  croll_i64
+#define u64  croll_u64
+#define byte croll_byte
+#endif 
 
 //======================================================================
 // Declaration of functions
 //======================================================================
-
 #ifdef __cplusplus
 extern "C" {
-#endif // __cplusplus
+#endif
 
+//======================================================================
+// Core Initialization
+//======================================================================
 /**
  * @brief Initializes the CRoll library.
  *
- * This function should be called before using any other functions in the library.
+ * Must be called once before any other CRoll function.
  */
-__STATIC_FUNCTION void croll_init();
+__STATIC_FUNCTION void croll_init(void);
 
-// logging
+//======================================================================
+// Logging
+//======================================================================
+/**
+ * @brief Logs an informational message to stdout.
+ *
+ * Prepends “[INFO]” in blue.
+ *
+ * @param format printf-style format string.
+ * @param ...    format arguments.
+ */
+__STATIC_FUNCTION void croll_logInfo(const char *format, ...);
 
 /**
- * @brief Prints a formatted string to stdout with the info format.
+ * @brief Logs a warning message to stderr.
  *
- * The info format is blue and has [INFO] before the message.
+ * Prepends “[WARN]” in yellow.
  *
- * @param format The format string to use. Must be a valid format string for vprintf.
- * @param ... The arguments to use in the format string.
+ * @param format printf-style format string.
+ * @param ...    format arguments.
  */
-__STATIC_FUNCTION void croll_logInfo(const char *format, ...) __CROLL_FORMAT_ATTR;
-/*
- * @brief Prints a formatted string to stderr with the warning format.
- *
- * The warning format is yellow and has [WARN] before the message.
- *
- * @param format The format string to use. Must be a valid format string for vprintf.
- * @param ... The arguments to use in the format string.
- */
-__STATIC_FUNCTION void croll_logWarn(const char *format, ...) __CROLL_FORMAT_ATTR;
+__STATIC_FUNCTION void croll_logWarn(const char *format, ...);
+
 /**
- * @brief Prints a formatted string to stderr with the error format.
+ * @brief Logs an error message to stderr.
  *
- * The error format is red and has [RED] before the message.
+ * Prepends “[ERROR]” in red.
  *
- * @param format The format string to use. Must be a valid format string for vprintf.
- * @param ... The arguments to use in the format string.
+ * @param format printf-style format string.
+ * @param ...    format arguments.
  */
-__STATIC_FUNCTION void croll_logError(const char *format, ...) __CROLL_FORMAT_ATTR;
+__STATIC_FUNCTION void croll_logError(const char *format, ...);
 
-// strings
+//======================================================================
+// Text Formatting
+//======================================================================
+/**
+ * @brief Formats a string into an internal rotating buffer.
+ *
+ * Not thread-safe.
+ *
+ * @param format printf-style format string.
+ * @param ...    format arguments.
+ * @return       Pointer to a null-terminated formatted string.
+ */
+__STATIC_FUNCTION char *croll_textFmt(const char *format, ...);
 
-__STATIC_FUNCTION char *croll_textFmt(const char *format, ...) __CROLL_FORMAT_ATTR;
-
+/**
+ * @brief Returns a substring of an existing string.
+ *
+ * Uses croll_textFmt’s buffer.
+ *
+ * @param str   Source string.
+ * @param start Index of first character (inclusive).
+ * @param end   Index of last character (inclusive).
+ * @return      Null-terminated substring.
+ */
 __STATIC_FUNCTION char *croll_textSubString(const char *str, size_t start, size_t end);
 
-// IO
+//======================================================================
+// I/O
+//======================================================================
+/**
+ * @brief Reads a line (until newline or EOF) into a StringBuilder.
+ *
+ * @return A croll_StringBuilder containing the line (null-terminated).
+ */
+__STATIC_FUNCTION croll_StringBuilder croll_HgetLine(void);
 
 /**
- * @brief Reads a line from stdin and stores it in a croll_StringBuilder.
+ * @brief Reads a line into a user-provided buffer.
  *
- * This function reads a line from stdin and stores it in a croll_StringBuilder.
- * The line is read until a newline or EOF is encountered.
+ * Stops at newline or EOF, writes null terminator.
  *
- * @return The croll_StringBuilder containing the line.
- */
-__STATIC_FUNCTION croll_StringBuilder croll_HgetLine();
-/**
- * @brief Reads a line from stdin and stores it in a char array.
- *
- * This function reads a line from stdin and stores it in the given char array.
- * The line is read until a newline or EOF is encountered.
- *
- * @param buffer The char array to store the line in. Must be at least buffer_size+1 in size.
- * @param buffer_size The maximum size of the buffer. Must be greater than 0.
- *
- * @return True if the line was successfully read, false if the buffer was too small.
+ * @param buffer      User buffer.
+ * @param buffer_size Size of buffer (must be >0).
+ * @return            true on success, false if truncated.
  */
 __STATIC_FUNCTION bool croll_SgetLine(char *buffer, size_t buffer_size);
 
+/**
+ * @brief Reads an entire file into a StringBuilder.
+ *
+ * @param path File path.
+ * @return     croll_StringBuilder with file contents (null-terminated).
+ */
 __STATIC_FUNCTION croll_StringBuilder croll_readEntireFile(const char *path);
 
-// memory
-
-// bump/arena allocator
-
+//======================================================================
+// Memory Allocators
+//======================================================================
 /**
- * @brief Creates a new bump allocator.
+ * @brief Creates a new bump (arena) allocator.
  *
- * Creates a new bump allocator with the given capacity.
- * @param cap The capacity of the bump allocator.
- *
- * @return A pointer to the new bump allocator, or NULL if allocation failed.
+ * @param capacity Total size of the arena in bytes.
+ * @return         Pointer to allocator or NULL on failure.
  */
 __STATIC_FUNCTION croll_BumpAlloc *croll_bumpNew(size_t capacity);
 
 /**
- * @brief Allocates memory using a bump allocator.
+ * @brief Allocates memory from a bump allocator.
  *
- * This function allocates memory using a bump allocator.
- *
- * @param bump The bump allocator to use.
- * @param size The size of the memory to allocate.
- *
- * @return A pointer to the allocated memory.
+ * @param bump Pointer to bump allocator.
+ * @param size Number of bytes to allocate.
+ * @return     Pointer to memory or NULL if out of space.
  */
 __STATIC_FUNCTION void *croll_bumpAlloc(croll_BumpAlloc *bump, size_t size);
 
 /**
- * @brief Resets a bump allocator.
+ * @brief Resets a bump allocator (frees all in one go).
  *
- * This function resets a bump allocator. The offset is just set to 0, so the next allocation will start at the beginning.
- *
- * @param bump The bump allocator to reset.
+ * @param bump Pointer to bump allocator.
  */
 __STATIC_FUNCTION void croll_bumpReset(croll_BumpAlloc *bump);
 
 /**
- * @brief Destroys a bump allocator.
+ * @brief Destroys a bump allocator and frees its memory.
  *
- * This function destroys a bump allocator, freeing it's content and nullifying it.
- *
- * @param bump The bump allocator to destroy.
+ * @param bump Pointer to bump allocator.
  */
 __STATIC_FUNCTION void croll_bumpDestroy(croll_BumpAlloc *bump);
-
-// pool allocator
 
 /**
  * @brief Creates a new pool allocator.
  *
- * Creates a new pool allocator with the given pool size and chunk size.
- * `chunk_size` must be greater than or qual to `sizeof(void*)`
- * 
- * The chunk allocator is a meta data structure, that means it is not actually defined by code and is just a void pointer.
- * It's contents should look like the following:
- * ```c
- * struct chunk {
- *     union chunk {
- *         char data[chunk_size];
- *         union chunk *next; // next is for the free_chunks list, we don't need it after the chunk is gave to the user, thus making chunk a union
- *     };
- *     pool_allocator *allocator; // dad allocator, used for the pool->_next pool expansion, without it we cannot confirm that a pool is really the owner of the chunk when freeing
- * };
- * ```
- * 
- * @param pool_size The size of the pool.
- * @param chunk_size The size of the chunks.
- *
- * @return A pointer to the new pool allocator, or NULL if allocation failed.
+ * @param pool_size  Number of chunks.
+ * @param chunk_size Size of each chunk (>= sizeof(void*)).
+ * @return           Pointer to allocator or NULL on failure.
  */
 __STATIC_FUNCTION croll_PoolAlloc *croll_poolNew(size_t pool_size, size_t chunk_size);
 
 /**
- * @brief Destroys a pool allocator.
+ * @brief Allocates one chunk from the pool.
  *
- * Destroys a pool allocator, freeing it's content and nullifying it.
- *
- * @param pool The pool allocator to destroy.
- */
-__STATIC_FUNCTION void croll_poolDestroy(croll_PoolAlloc *pool);
-
-/**
- * @brief Allocates memory using a pool allocator.
- *
- *  This function allocates memory using a pool allocator.
- * 
- * @param pool The pool allocator to use.
- *
- * @return A pointer to the allocated memory.
+ * @param pool Pointer to pool allocator.
+ * @return     Pointer to chunk or NULL if error.
  */
 __STATIC_FUNCTION void *croll_poolAlloc(croll_PoolAlloc *pool);
 
 /**
- * @brief Frees memory using a pool allocator.
+ * @brief Frees a chunk back to its pool.
  *
- * This function frees memory using a pool allocator. `pool` and `chunk` must not be NULL
- *
- * @param pool The pool allocator to use.
- * @param chunk The chunk to free.
+ * @param pool  Pointer to pool allocator.
+ * @param chunk Pointer to previously allocated chunk.
  */
 __STATIC_FUNCTION void croll_poolFree(croll_PoolAlloc *pool, void *chunk);
 
-// hash
+/**
+ * @brief Destroys a pool allocator and frees all memory.
+ *
+ * @param pool Pointer to pool allocator.
+ */
+__STATIC_FUNCTION void croll_poolDestroy(croll_PoolAlloc *pool);
+
+//======================================================================
+// Hash Table
+//======================================================================
+/**
+ * @brief Creates a new hash table.
+ *
+ * @param key_max_len Maximum key length (for internal pool).
+ * @return            Pointer to table or NULL on failure.
+ */
+__STATIC_FUNCTION croll_HashTable *croll_htNew(size_t key_max_len);
 
 /**
- * @brief Computes the hash of a string using the Djb2 algorithm.
- * 
- * @param str The string to hash.
- * 
- * @return The hash of the string.
- * 
- * @see https://en.wikipedia.org/wiki/Daniel_J._Bernstein#Software
+ * @brief Inserts or updates an entry in the hash table.
+ *
+ * @param ht    Pointer to hash table.
+ * @param key   Null-terminated string key.
+ * @param value Pointer to value.
+ * @return      true on success, false on error.
+ */
+__STATIC_FUNCTION bool croll_htSet(croll_HashTable *ht, const char *key, void *value);
+
+/**
+ * @brief Retrieves a value by key.
+ *
+ * @param ht  Pointer to hash table.
+ * @param key Null-terminated string key.
+ * @return    Pointer to value or NULL if not found.
+ */
+__STATIC_FUNCTION void *croll_htGet(croll_HashTable *ht, const char *key);
+
+/**
+ * @brief Destroys a hash table and frees all memory.
+ *
+ * @param ht Pointer to hash table.
+ */
+__STATIC_FUNCTION void croll_htDestroy(croll_HashTable *ht);
+
+//======================================================================
+// Miscellaneous
+//======================================================================
+/**
+ * @brief DJB2 string hash function.
+ *
+ * @param str Null-terminated string.
+ * @return    Computed 32/64-bit hash.
  */
 __STATIC_FUNCTION size_t croll_hashDjb2(const char *str);
 
 #ifdef __cplusplus
 }
-#endif // __cplusplus
+#endif
 
 //======================================================================
 // Implementation
@@ -451,7 +579,7 @@ __STATIC_FUNCTION void croll_init() {
 // logging
 
 __STATIC_FUNCTION void croll_logInfo(const char *format, ...) {
-    fprintf(croll_STDOUT, "33[94m[INFO]\033[0m ");
+    fprintf(croll_STDOUT, "\033[94m[INFO]\033[0m ");
     va_list args;
     va_start(args, format);
     vprintf(format, args);
@@ -751,7 +879,7 @@ __STATIC_FUNCTION void croll_htDestroy(croll_HashTable *ht) {
             croll_poolFree(ht->str_allocator, ht->entries[i].key);
         }
     }
-    
+
     croll_poolDestroy(ht->str_allocator);
     free(ht->entries);
     free(ht);

@@ -1,7 +1,7 @@
 // dev_test_croll.c
 #define CROLL_STRIP_PREFIX
 #define CROLL_IMPLEMENTATION
-#define CROLL_POOL_ALLOC_IMPLEMENTATION
+#define CROLL_HASHTABLE_IMPLEMENTATION
 #include "croll.h"
 
 #include <string.h>
@@ -199,6 +199,53 @@ bool test_hash() {
     return true;
 }
 
+bool test_hashtable() {
+    croll_BumpAlloc *arena = croll_bumpNew(500);
+
+    croll_HashTable *ht = croll_htNew(32);
+    ASSERT(ht != NULL);
+
+    logInfo("ht: %p\n", ht);
+
+    {
+        int *val = croll_bumpAlloc(arena, sizeof(int));
+        *val = 69;
+        if (!croll_htSet(ht, "num1", val)) logError("failed to set 'num1'\n");
+        
+        logInfo("set ''num1'' to %d\n", *val);
+    }
+
+    {
+        int *val = croll_bumpAlloc(arena, sizeof(int));
+        *val = 420;
+        if (!croll_htSet(ht, "num2", val)) logError("failed to set 'num2'\n");
+
+        logInfo("set ''num2'' to %d\n", *val);
+    }
+
+    {
+        int *val = croll_bumpAlloc(arena, sizeof(int));
+        *val = 1337;
+        if (!croll_htSet(ht, "num3", val)) logError("failed to set 'num3'\n");
+
+        logInfo("set ''num3'' to %d\n", *val);
+    }
+
+    ASSERT(croll_htGet(ht, "num1") != NULL && *(int *)croll_htGet(ht, "num1") == 69);
+    logInfo("num1: %d\n", *(int *)croll_htGet(ht, "num1"));
+    ASSERT(croll_htGet(ht, "num2") != NULL && *(int *)croll_htGet(ht, "num2") == 420);
+    logInfo("num2: %d\n", *(int *)croll_htGet(ht, "num2"));
+    ASSERT(croll_htGet(ht, "num3") != NULL && *(int *)croll_htGet(ht, "num3") == 1337);
+    logInfo("num3: %d\n", *(int *)croll_htGet(ht, "num3"));
+
+    
+    croll_bumpDestroy(arena);
+    logInfo("Freed arena.\n");
+    croll_htDestroy(ht);
+    logInfo("Freed HT.\n");
+    return true;
+}
+
 void test_all() {
     TEST(test_logging);
     TEST(test_da_append);
@@ -211,6 +258,7 @@ void test_all() {
     TEST(test_poolallocator);
     TEST(test_hash);
     TEST(test_readfile);
+    TEST(test_hashtable);
 }
 
 int main(void) {

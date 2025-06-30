@@ -39,9 +39,9 @@
     ```
 
     Implementation macros:
-        CROLL_IMPLEMENTATION, CROLL_POOL_ALLOC_IMPLEMENTATION
+        CROLL_IMPLEMENTATION, CROLL_HASHTABLE_IMPLEMENTATION
     Helper macros:
-        CROLL_STRIP_PREFIX
+        CROLL_STRIP_PREFIX, CROLL_STATIC_FUNC, CROLL_MAX_TEXTFMT_BUFFERS, CROLL_TEXTFMT_BUFFER_SIZE
 
     License: MIT
     
@@ -86,6 +86,12 @@ Copyright 2025 Viktor Hugo C.M.G.
 #define __CROLL_INLINE_ATTR inline __attribute__((always_inline))
 #else
 #define __CROLL_INLINE_ATTR inline
+#endif
+
+#ifdef CROLL_STATIC_FUNC
+#define __STATIC_FUNCTION static
+#else
+#define __STATIC_FUNCTION
 #endif
 
 static FILE *croll_STDIN;
@@ -149,59 +155,6 @@ static FILE *croll_STDOUT;
 #define croll_daForEach(type, it, da) for(type *it = (da)->data; it < (da)->data + (da)->len; it++)
 #define croll_daForEach_index(it, da) ((it) - (da)->data)
 
-// hash table defines
-
-// #define croll_htDeclStart(type, name) struct name { struct {char *key; type value;} *entries; int cap; int len;}
-// #define croll_htDeclEnd() }
-// #define croll_htDecl(type, name) croll_htDeclStart(type, name) croll_htDeclEnd()
-
-// #define croll_htFree(ht) do {free((ht)->entries); (ht)->entries = NULL; (ht)->len = 0; (ht)->cap = 0;} while(0)
-
-// #define croll_htInitCap 16
-
-// #define croll_htFunctionDecl(ht_type_name, type) \
-//     static inline ht_type_name *ht_##type##_new(void) {\
-//         ht_type_name *table = malloc(sizeof(type));\
-//         croll_checkNullPtr(table) return NULL;\
-//         table->len = 0;\
-//         table->cap = croll_htInitCap;\
-//         \
-//         /* allocate memory for entries */\
-//         table->entries = (struct {char *key; type value;} *)calloc(croll_htInitCap, sizeof(struct {char *key; type value;}));\
-//         croll_checkNullPtr(table->entries) { free(table); return NULL; }\
-//     \
-//         return table;\
-//     }\
-//     \
-//     static inline void ht_##type##_destroy(ht_type_name *table) {\
-//         croll_checkNullPtr(table) return;\
-//         \
-//         for(int i = 0; i < table->len; i++)\
-//             free(table->entries[i].key);\
-//         \
-//         free(table->entries);\
-//         free(table);\
-//     }\
-//     \
-//     static inline type *ht_##type##_get(ht_type_name *table, char *key) {\
-//         size_t hash = croll_hashDjb2(key);\
-//         size_t index = (size_t)(hash & table->cap) /* hash % cap */\
-//         \
-//         /* loop until empty entry */ \
-//         while(table->entries[index].key != NULL) {\
-//             if(strcmp(table->entries[index].key, key) == 0)\
-//                 return &table->entries[index].value;\ /* found entry */\
-//             \
-//             index++;\
-//             if(index => table->cap)\
-//                 index = 0;\
-//         }\
-//         \
-//         return NULL; /* not found */\
-//     }\
-//     \
-//     static inline void ht_##type##_set()
-
 //======================================================================
 // Types
 //======================================================================
@@ -257,13 +210,21 @@ typedef struct croll_PoolAlloc {
     size_t size;
 } croll_PoolAlloc;
 
-// Won't be implemented yet
-// // A simpler version of croll_BumpAlloc for use with all sorts of memories, from heap to a simple char arr[1024]; heap like array. Used mostly on croll internal string functions.
-// typedef struct croll_SBumpAlloc {
-//     croll_u8 *data;
-//     size_t size;
-//     size_t offset;
-// } croll_SBumpAlloc;
+// hashtable
+
+struct croll_HtEntry {
+    char *key;
+    void *value; 
+};
+
+typedef struct {
+    croll_PoolAlloc *str_allocator;
+    size_t key_max_len;
+
+    struct croll_HtEntry *entries;
+    size_t cap;
+    size_t len;
+} croll_HashTable;
 
 //======================================================================
 // Strip prefix
@@ -293,7 +254,7 @@ extern "C" {
  *
  * This function should be called before using any other functions in the library.
  */
-static void croll_init();
+__STATIC_FUNCTION void croll_init();
 
 // logging
 
@@ -305,7 +266,7 @@ static void croll_init();
  * @param format The format string to use. Must be a valid format string for vprintf.
  * @param ... The arguments to use in the format string.
  */
-static void croll_logInfo(const char *format, ...) __CROLL_FORMAT_ATTR;
+__STATIC_FUNCTION void croll_logInfo(const char *format, ...) __CROLL_FORMAT_ATTR;
 /*
  * @brief Prints a formatted string to stderr with the warning format.
  *
@@ -314,7 +275,7 @@ static void croll_logInfo(const char *format, ...) __CROLL_FORMAT_ATTR;
  * @param format The format string to use. Must be a valid format string for vprintf.
  * @param ... The arguments to use in the format string.
  */
-static void croll_logWarn(const char *format, ...) __CROLL_FORMAT_ATTR;
+__STATIC_FUNCTION void croll_logWarn(const char *format, ...) __CROLL_FORMAT_ATTR;
 /**
  * @brief Prints a formatted string to stderr with the error format.
  *
@@ -323,7 +284,13 @@ static void croll_logWarn(const char *format, ...) __CROLL_FORMAT_ATTR;
  * @param format The format string to use. Must be a valid format string for vprintf.
  * @param ... The arguments to use in the format string.
  */
-static void croll_logError(const char *format, ...) __CROLL_FORMAT_ATTR;
+__STATIC_FUNCTION void croll_logError(const char *format, ...) __CROLL_FORMAT_ATTR;
+
+// strings
+
+__STATIC_FUNCTION char *croll_textFmt(const char *format, ...) __CROLL_FORMAT_ATTR;
+
+__STATIC_FUNCTION char *croll_textSubString(const char *str, size_t start, size_t end);
 
 // IO
 
@@ -335,7 +302,7 @@ static void croll_logError(const char *format, ...) __CROLL_FORMAT_ATTR;
  *
  * @return The croll_StringBuilder containing the line.
  */
-static croll_StringBuilder croll_HgetLine();
+__STATIC_FUNCTION croll_StringBuilder croll_HgetLine();
 /**
  * @brief Reads a line from stdin and stores it in a char array.
  *
@@ -347,9 +314,9 @@ static croll_StringBuilder croll_HgetLine();
  *
  * @return True if the line was successfully read, false if the buffer was too small.
  */
-static bool croll_SgetLine(char *buffer, size_t buffer_size);
+__STATIC_FUNCTION bool croll_SgetLine(char *buffer, size_t buffer_size);
 
-static croll_StringBuilder croll_readEntireFile(const char *path);
+__STATIC_FUNCTION croll_StringBuilder croll_readEntireFile(const char *path);
 
 // memory
 
@@ -363,7 +330,7 @@ static croll_StringBuilder croll_readEntireFile(const char *path);
  *
  * @return A pointer to the new bump allocator, or NULL if allocation failed.
  */
-static croll_BumpAlloc *croll_bumpNew(size_t capacity);
+__STATIC_FUNCTION croll_BumpAlloc *croll_bumpNew(size_t capacity);
 
 /**
  * @brief Allocates memory using a bump allocator.
@@ -375,7 +342,7 @@ static croll_BumpAlloc *croll_bumpNew(size_t capacity);
  *
  * @return A pointer to the allocated memory.
  */
-static void *croll_bumpAlloc(croll_BumpAlloc *bump, size_t size);
+__STATIC_FUNCTION void *croll_bumpAlloc(croll_BumpAlloc *bump, size_t size);
 
 /**
  * @brief Resets a bump allocator.
@@ -384,7 +351,7 @@ static void *croll_bumpAlloc(croll_BumpAlloc *bump, size_t size);
  *
  * @param bump The bump allocator to reset.
  */
-static void croll_bumpReset(croll_BumpAlloc *bump);
+__STATIC_FUNCTION void croll_bumpReset(croll_BumpAlloc *bump);
 
 /**
  * @brief Destroys a bump allocator.
@@ -393,7 +360,7 @@ static void croll_bumpReset(croll_BumpAlloc *bump);
  *
  * @param bump The bump allocator to destroy.
  */
-static void croll_bumpDestroy(croll_BumpAlloc *bump);
+__STATIC_FUNCTION void croll_bumpDestroy(croll_BumpAlloc *bump);
 
 // pool allocator
 
@@ -420,7 +387,7 @@ static void croll_bumpDestroy(croll_BumpAlloc *bump);
  *
  * @return A pointer to the new pool allocator, or NULL if allocation failed.
  */
-static croll_PoolAlloc *croll_poolNew(size_t pool_size, size_t chunk_size);
+__STATIC_FUNCTION croll_PoolAlloc *croll_poolNew(size_t pool_size, size_t chunk_size);
 
 /**
  * @brief Destroys a pool allocator.
@@ -429,7 +396,7 @@ static croll_PoolAlloc *croll_poolNew(size_t pool_size, size_t chunk_size);
  *
  * @param pool The pool allocator to destroy.
  */
-static void croll_poolDestroy(croll_PoolAlloc *pool);
+__STATIC_FUNCTION void croll_poolDestroy(croll_PoolAlloc *pool);
 
 /**
  * @brief Allocates memory using a pool allocator.
@@ -440,7 +407,7 @@ static void croll_poolDestroy(croll_PoolAlloc *pool);
  *
  * @return A pointer to the allocated memory.
  */
-static void *croll_poolAlloc(croll_PoolAlloc *pool);
+__STATIC_FUNCTION void *croll_poolAlloc(croll_PoolAlloc *pool);
 
 /**
  * @brief Frees memory using a pool allocator.
@@ -450,9 +417,9 @@ static void *croll_poolAlloc(croll_PoolAlloc *pool);
  * @param pool The pool allocator to use.
  * @param chunk The chunk to free.
  */
-static void croll_poolFree(croll_PoolAlloc *pool, void *chunk);
+__STATIC_FUNCTION void croll_poolFree(croll_PoolAlloc *pool, void *chunk);
 
-// hash table
+// hash
 
 /**
  * @brief Computes the hash of a string using the Djb2 algorithm.
@@ -463,7 +430,7 @@ static void croll_poolFree(croll_PoolAlloc *pool, void *chunk);
  * 
  * @see https://en.wikipedia.org/wiki/Daniel_J._Bernstein#Software
  */
-static size_t croll_hashDjb2(char *str);
+__STATIC_FUNCTION size_t croll_hashDjb2(const char *str);
 
 #ifdef __cplusplus
 }
@@ -475,7 +442,7 @@ static size_t croll_hashDjb2(char *str);
 
 #ifdef CROLL_IMPLEMENTATION
 
-static void croll_init() {
+__STATIC_FUNCTION void croll_init() {
     croll_STDIN = stdin;
     croll_STDERR = stderr;
     croll_STDOUT = stdout;
@@ -483,15 +450,15 @@ static void croll_init() {
 
 // logging
 
-static void croll_logInfo(const char *format, ...) {
-    printf("\033[94m[INFO]\033[0m ");
+__STATIC_FUNCTION void croll_logInfo(const char *format, ...) {
+    fprintf(croll_STDOUT, "33[94m[INFO]\033[0m ");
     va_list args;
     va_start(args, format);
     vprintf(format, args);
     va_end(args);
 }
 
-static void croll_logWarn(const char *format, ...) {
+__STATIC_FUNCTION void croll_logWarn(const char *format, ...) {
     fprintf(croll_STDERR, "\033[93m[WARN]\033[0m ");
     va_list args;
     va_start(args, format);
@@ -499,17 +466,52 @@ static void croll_logWarn(const char *format, ...) {
     va_end(args);
 }
 
-static void croll_logError(const char *format, ...) {
-    printf("\033[91m[ERROR]\033[0m ");
+__STATIC_FUNCTION void croll_logError(const char *format, ...) {
+    fprintf(croll_STDERR, "\033[91m[ERROR]\033[0m ");
     va_list args;
     va_start(args, format);
     vfprintf(croll_STDERR, format, args);
     va_end(args);
 }
 
+// strings
+
+__STATIC_FUNCTION char *croll_textFmt(const char *format, ...) {
+    #ifndef CROLL_MAX_TEXTFMT_BUFFERS
+    #define CROLL_MAX_TEXTFMT_BUFFERS 4
+    #endif
+
+    #ifndef CROLL_TEXTFMT_BUFFER_SIZE
+    #define CROLL_TEXTFMT_BUFFER_SIZE 1024
+    #endif
+
+    static char buffers[CROLL_MAX_TEXTFMT_BUFFERS][CROLL_TEXTFMT_BUFFER_SIZE] = {0};
+    static int index = 0;
+    index = (index + 1) % CROLL_MAX_TEXTFMT_BUFFERS;
+    
+    memset(buffers[index], 0, CROLL_TEXTFMT_BUFFER_SIZE);
+
+    va_list args;
+    va_start(args, format);
+    int size = vsnprintf(buffers[index], CROLL_TEXTFMT_BUFFER_SIZE, format, args);
+    va_end(args);
+
+    if(size >= CROLL_TEXTFMT_BUFFER_SIZE) {
+        sprintf(buffers[index] + CROLL_TEXTFMT_BUFFER_SIZE - 4, "...");
+    }
+
+    return buffers[index];
+}
+
+__STATIC_FUNCTION char *croll_textSubString(const char *str, size_t start, size_t end) {
+    char *nstr = croll_textFmt("%.*s", (int)((end + 1) - start), str + start);
+    nstr[end + 1] = '\0';
+    return nstr;
+}
+
 // IO
 
-static croll_StringBuilder croll_HgetLine() {
+__STATIC_FUNCTION croll_StringBuilder croll_HgetLine() {
     croll_StringBuilder sb = {0};
     while (true) {
         char c = fgetc(croll_STDIN);
@@ -520,7 +522,7 @@ static croll_StringBuilder croll_HgetLine() {
     return sb;
 }
 
-static bool croll_SgetLine(char *buffer, size_t buffer_size) {
+__STATIC_FUNCTION bool croll_SgetLine(char *buffer, size_t buffer_size) {
     croll_ASSERT(buffer != NULL, "Buffer must not be NULL at file: "__FILE__);
     croll_ASSERT(buffer_size > 0, "Buffer size must be greater than 0 at file: "__FILE__);
     size_t buffer_length = 1;
@@ -538,7 +540,7 @@ static bool croll_SgetLine(char *buffer, size_t buffer_size) {
     return true;
 }
 
-static croll_StringBuilder croll_readEntireFile(const char *path) {
+__STATIC_FUNCTION croll_StringBuilder croll_readEntireFile(const char *path) {
     FILE *file = fopen(path, "r");
     croll_checkNullPtr(file) return (croll_StringBuilder){0};
     croll_StringBuilder sb = {0};
@@ -555,7 +557,7 @@ static croll_StringBuilder croll_readEntireFile(const char *path) {
 
 // memory
 
-static croll_BumpAlloc *croll_bumpNew(size_t cap) {
+__STATIC_FUNCTION croll_BumpAlloc *croll_bumpNew(size_t cap) {
     croll_BumpAlloc *bump = malloc(sizeof(croll_BumpAlloc));
     croll_checkNullPtr(bump) return NULL;
     
@@ -571,7 +573,7 @@ static croll_BumpAlloc *croll_bumpNew(size_t cap) {
     return bump;
 }
 
-static __CROLL_INLINE_ATTR void *croll_bumpAlloc(croll_BumpAlloc *bump, size_t size) {
+__STATIC_FUNCTION __CROLL_INLINE_ATTR void *croll_bumpAlloc(croll_BumpAlloc *bump, size_t size) {
     if(size == 0) return NULL;
     if(size & 0b111) size = croll_ALLOC_ALIGN(size);
 
@@ -583,7 +585,7 @@ static __CROLL_INLINE_ATTR void *croll_bumpAlloc(croll_BumpAlloc *bump, size_t s
     return (void *)cur_addr;
 }
 
-static __CROLL_INLINE_ATTR void *croll_bumpAllocOrExpand(croll_BumpAlloc *bump, size_t size) {
+__STATIC_FUNCTION __CROLL_INLINE_ATTR void *croll_bumpAllocOrExpand(croll_BumpAlloc *bump, size_t size) {
     if(size == 0) return NULL;
     if(size & 0b111) size = croll_ALLOC_ALIGN(size);
 
@@ -603,7 +605,7 @@ static __CROLL_INLINE_ATTR void *croll_bumpAllocOrExpand(croll_BumpAlloc *bump, 
     return (void *)cur_addr;
 } 
 
-static __CROLL_INLINE_ATTR void croll_bumpReset(croll_BumpAlloc *bump) {
+__STATIC_FUNCTION __CROLL_INLINE_ATTR void croll_bumpReset(croll_BumpAlloc *bump) {
     bump->offset = 0;
     while(bump->_next != NULL) {
         bump = bump->_next;
@@ -611,20 +613,24 @@ static __CROLL_INLINE_ATTR void croll_bumpReset(croll_BumpAlloc *bump) {
     }
 }
 
-static __CROLL_INLINE_ATTR void croll_bumpDestroy(croll_BumpAlloc *bump) {
-    do {
+__STATIC_FUNCTION __CROLL_INLINE_ATTR void croll_bumpDestroy(croll_BumpAlloc *bump) {
+    if(bump == NULL) return;
+
+    if(bump->_next == NULL) {
+        free(bump->data);
+        free(bump);
+        return;
+    }
+    while(bump->_next != NULL) {
         croll_BumpAlloc *next = bump->_next;
         free(bump->data);
-        bump->data = NULL;
         free(bump);
         bump = next;
-    } while(bump->_next != NULL);
+    } 
 }
 
-// hash table
-
 // Djb2 hash function
-static size_t croll_hashDjb2(char *str) {
+__STATIC_FUNCTION size_t croll_hashDjb2(const char *str) {
     size_t hash = 5381;
     int c;
 
@@ -634,12 +640,7 @@ static size_t croll_hashDjb2(char *str) {
     return hash;
 }
 
-#endif // CROLL_IMPLEMENTATION
-
-#define CROLL_POOL_ALLOC_IMPLEMENTATION
-#ifdef CROLL_POOL_ALLOC_IMPLEMENTATION
-
-static croll_PoolAlloc *croll_poolNew(size_t pool_size, size_t chunk_size) {
+__STATIC_FUNCTION croll_PoolAlloc *croll_poolNew(size_t pool_size, size_t chunk_size) {
     if(pool_size == 0 || chunk_size < sizeof(void*))
     return NULL;
     chunk_size = croll_ALLOC_ALIGN(chunk_size);
@@ -678,7 +679,7 @@ static croll_PoolAlloc *croll_poolNew(size_t pool_size, size_t chunk_size) {
     return pool;
 }
 
-static __CROLL_INLINE_ATTR void croll_poolDestroy(croll_PoolAlloc *pool) {
+__STATIC_FUNCTION __CROLL_INLINE_ATTR void croll_poolDestroy(croll_PoolAlloc *pool) {
     croll_checkNullPtr(pool) return;
     do {
         croll_PoolAlloc *next = pool->_next;
@@ -689,7 +690,7 @@ static __CROLL_INLINE_ATTR void croll_poolDestroy(croll_PoolAlloc *pool) {
     } while(pool->_next != NULL);
 }
 
-static void *croll_poolAlloc(croll_PoolAlloc *pool) {
+__STATIC_FUNCTION void *croll_poolAlloc(croll_PoolAlloc *pool) {
     croll_checkNullPtr(pool) return NULL;
     croll_checkNullPtr(pool->free_chunks) {
         while(pool->_next != NULL) {
@@ -706,13 +707,133 @@ static void *croll_poolAlloc(croll_PoolAlloc *pool) {
     return chunk;
 }
 
-static __CROLL_INLINE_ATTR void croll_poolFree(croll_PoolAlloc *pool, void *chunk) {
+__STATIC_FUNCTION __CROLL_INLINE_ATTR void croll_poolFree(croll_PoolAlloc *pool, void *chunk) {
     croll_checkNullPtr(pool) return;
     croll_checkNullPtr(chunk) return;
 
     *(void**)chunk = pool->free_chunks;
     pool->free_chunks = chunk;
 }
-#endif // CROLL_POOL_ALLOC_IMPLEMENTATION
+
+#endif // CROLL_IMPLEMENTATION
+
+#ifdef CROLL_HASHTABLE_IMPLEMENTATION
+#define CROLL_HASHTABLE_INIT_CAP 64
+
+__STATIC_FUNCTION croll_HashTable *croll_htNew(size_t key_max_len) {
+    croll_HashTable *ht = (croll_HashTable *)malloc(sizeof(croll_HashTable));
+    croll_checkNullPtr(ht)
+        return NULL;
+    memset(ht, 0, sizeof(croll_HashTable));
+
+    ht->entries = calloc(CROLL_HASHTABLE_INIT_CAP, sizeof(struct croll_HtEntry));
+
+    ht->key_max_len = key_max_len;
+    ht->str_allocator = croll_poolNew(CROLL_HASHTABLE_INIT_CAP, key_max_len);
+    croll_checkNullPtr(ht->str_allocator) {
+        free(ht);
+        return NULL;
+    }
+
+    ht->cap = CROLL_HASHTABLE_INIT_CAP;
+    ht->len = 0;
+
+    return ht;
+}
+
+__STATIC_FUNCTION void croll_htDestroy(croll_HashTable *ht) {
+    for(size_t i = 0; i < ht->cap; i++) {
+        croll_nullPtrGuard(ht->entries[i].key) {
+            croll_poolFree(ht->str_allocator, ht->entries[i].key);
+        }
+    }
+    croll_poolDestroy(ht->str_allocator);
+    free(ht->entries);
+    free(ht);
+}
+
+__STATIC_FUNCTION void *croll_htGet(croll_HashTable *ht, const char *key) {
+    key = croll_textSubString(key, 0, ht->key_max_len);
+    size_t hash = croll_hashDjb2(key);
+    // same as index = hash % (ht->cap)
+    size_t index = (size_t)(hash & (size_t)(ht->cap - 1));
+
+    while(ht->entries[index].key != NULL) {
+        if(strcmp(ht->entries[index].key, key) == 0)
+            return ht->entries[index].value;
+
+        index++;
+        if(index >= ht->cap)
+            // wrap around
+            index = 0;
+    }
+
+    return NULL;
+}
+
+__STATIC_FUNCTION bool croll__htSetEntry(struct croll_HtEntry *entries, size_t cap, size_t *plen, const char *key, void *value, int key_max_len, croll_PoolAlloc *str_allocator) {
+    key = croll_textSubString(key, 0, key_max_len);
+    size_t hash = croll_hashDjb2(key);
+    size_t index = (size_t)(hash & (size_t)(cap - 1));
+
+    while(entries[index].key != NULL) {
+        if(strcmp(entries[index].key, key) == 0) {
+            entries[index].value = value;
+            return true;
+        }
+
+        index++;
+        if(index >= cap)
+            index = 0;
+    }
+
+    if(plen != NULL) {
+        char *nkey = croll_poolAlloc(str_allocator);
+        croll_checkNullPtr(nkey) 
+            return NULL;
+        strcpy(nkey, key);
+        key = nkey;
+
+        (*plen)++;
+    }
+
+    entries[index].key = (char *)key;
+    entries[index].value = value;
+
+    return true;
+}
+
+__STATIC_FUNCTION bool croll__htExpand(croll_HashTable *ht) {
+    size_t ncap = ht->cap * 2;
+    if(ncap < ht->cap) // overflow check
+        return false;
+        
+    struct croll_HtEntry *nentries = calloc(ncap, sizeof(struct croll_HtEntry));
+    croll_checkNullPtr(nentries)
+        return false;
+    
+    for(size_t i = 0; i < ht->cap; i++) {
+        croll_nullPtrGuard(ht->entries[i].key)
+            croll__htSetEntry(nentries, ncap, NULL, ht->entries[i].key, ht->entries[i].value, ht->key_max_len, ht->str_allocator);
+    }
+
+    free(ht->entries);
+    ht->entries = nentries;
+    ht->cap = ncap;
+
+    return true;
+}
+
+__STATIC_FUNCTION bool croll_htSet(croll_HashTable *ht, const char *key, void *value) {
+    if(value == NULL)
+        return false;
+    
+    if(ht->len >= (ht->cap - (ht->cap >> 2)))
+        if(!croll__htExpand(ht))
+            return false;
+    
+    return croll__htSetEntry(ht->entries, ht->cap, &ht->len, key, value, ht->key_max_len, ht->str_allocator);
+}
+#endif // CROLL_HASHTABLE_IMPLEMENTATION
 
 #endif // LIB_CROLLing_H

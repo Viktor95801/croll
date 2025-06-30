@@ -4,7 +4,9 @@
 
 ### Todos
 
-- [ ] End implementation of hash tables (following [the tutorial](https://benhoyt.com/writings/hash-table-in-c/) by Ben Hoyt)
+- [x] End implementation of hash tables (following [the tutorial](https://benhoyt.com/writings/hash-table-in-c/) by Ben Hoyt)
+  - [x] Hash table test
+  - [ ] Fix poolAlloc situation (use simple strdup)
 - [x] Bump allocator
   - [x] Bump allocator test
   - [x] Bump allocator linked list expansion

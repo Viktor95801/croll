@@ -614,9 +614,8 @@ __STATIC_FUNCTION __CROLL_INLINE_ATTR void croll_bumpReset(croll_BumpAlloc *bump
 }
 
 __STATIC_FUNCTION __CROLL_INLINE_ATTR void croll_bumpDestroy(croll_BumpAlloc *bump) {
-    if(bump == NULL) return;
-
-    if(bump->_next == NULL) {
+    croll_checkNullPtr(bump) return;
+    croll_checkNullPtr(bump->_next) {
         free(bump->data);
         free(bump);
         return;
@@ -681,13 +680,18 @@ __STATIC_FUNCTION croll_PoolAlloc *croll_poolNew(size_t pool_size, size_t chunk_
 
 __STATIC_FUNCTION __CROLL_INLINE_ATTR void croll_poolDestroy(croll_PoolAlloc *pool) {
     croll_checkNullPtr(pool) return;
-    do {
+    croll_checkNullPtr(pool->_next) {
+        free(pool->chunks);
+        free(pool);
+        return;
+    }
+
+    while(pool->_next != NULL) {
         croll_PoolAlloc *next = pool->_next;
         free(pool->chunks);
-        pool->chunks = NULL;
         free(pool);
         pool = next;
-    } while(pool->_next != NULL);
+    } 
 }
 
 __STATIC_FUNCTION void *croll_poolAlloc(croll_PoolAlloc *pool) {
@@ -747,6 +751,7 @@ __STATIC_FUNCTION void croll_htDestroy(croll_HashTable *ht) {
             croll_poolFree(ht->str_allocator, ht->entries[i].key);
         }
     }
+    
     croll_poolDestroy(ht->str_allocator);
     free(ht->entries);
     free(ht);

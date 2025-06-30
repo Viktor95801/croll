@@ -829,7 +829,7 @@ __STATIC_FUNCTION void *croll_poolAlloc(croll_PoolAlloc *pool) {
             pool = pool->_next;
             if(pool->free_chunks != NULL) return croll_poolAlloc(pool);
         }
-        pool->_next = croll_poolNew(pool->size, pool->chunk_size - sizeof(croll_PoolAlloc *));
+        pool->_next = croll_poolNew(pool->size, pool->chunk_size);
         pool = pool->_next;
     }
 
